@@ -1,15 +1,51 @@
 import { generateBoard } from '../logic/gridUtils';
 import { useGameStore } from '../logic/store';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BOARD_SIZE, CELL_SIZE } from '../logic/constants';
+import { ParticleBurst } from './ParticleBurst';
+import { useEffect, useState } from 'react';
 
 interface BoardProps {
   size?: number;
   cellSize?: number;
 }
 
-export function Board({ size = 8, cellSize = 40 }: BoardProps) {
+export function Board({ size = BOARD_SIZE, cellSize = CELL_SIZE }: BoardProps) {
   const boardCells = generateBoard(size);
-  const { board: boardState, draggedPieceIndex, hoverGrid, pieces, canPlacePiece, lastClearedLines = { rows: [], cols: [] } } = useGameStore();
+  const { board: boardState, draggedPieceIndex, hoverGrid, pieces, canPlacePiece, lastClearedLines, combo } = useGameStore();
+  const [bursts, setBursts] = useState<{ id: number; x: number; y: number; color: string }[]>([]);
+
+  useEffect(() => {
+    if (lastClearedLines.rows.length > 0 || lastClearedLines.cols.length > 0) {
+      const newBursts: { id: number; x: number; y: number; color: string }[] = [];
+      
+      lastClearedLines.rows.forEach(row => {
+        for (let x = 0; x < size; x++) {
+          newBursts.push({
+            id: Math.random(),
+            x: x * cellSize + cellSize / 2,
+            y: row * cellSize + cellSize / 2,
+            color: '#ffffff'
+          });
+        }
+      });
+
+      lastClearedLines.cols.forEach(col => {
+        for (let y = 0; y < size; y++) {
+          newBursts.push({
+            id: Math.random(),
+            x: col * cellSize + cellSize / 2,
+            y: y * cellSize + cellSize / 2,
+            color: '#ffffff'
+          });
+        }
+      });
+
+      setBursts(prev => [...prev, ...newBursts]);
+      const timer = setTimeout(() => setBursts([]), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [lastClearedLines, size, cellSize]);
 
   const totalWidth = size * cellSize;
 
@@ -34,8 +70,18 @@ export function Board({ size = 8, cellSize = 40 }: BoardProps) {
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center p-4">
-      <div 
+    <div className="w-full h-full flex items-center justify-center p-4 relative">
+      {/* Particle Bursts */}
+      {bursts.map(b => (
+        <ParticleBurst key={b.id} x={b.x} y={b.y} color={b.color} />
+      ))}
+      
+      <motion.div 
+        animate={combo > 1 ? {
+          x: [0, -2, 2, -2, 2, 0],
+          y: [0, 1, -1, 1, -1, 0]
+        } : {}}
+        transition={{ duration: 0.2 }}
         className="relative bg-slate-900/40 rounded-lg p-0.5 border-4 border-slate-800 shadow-2xl"
         style={{ 
           width: totalWidth + 4, 
@@ -119,7 +165,7 @@ export function Board({ size = 8, cellSize = 40 }: BoardProps) {
             </div>
           );
         })}
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import type { PieceShape } from '../logic/pieces';
 import { pixelToGrid } from '../logic/gridUtils';
 import { useGameStore } from '../logic/store';
+import { CELL_SIZE, DRAG_OFFSET_V } from '../logic/constants';
 
 interface DraggablePieceProps {
   piece: PieceShape;
@@ -15,7 +16,7 @@ export function DraggablePiece({ piece, index, cellSize = 30 }: DraggablePiecePr
   const containerRef = useRef<HTMLDivElement>(null);
   const { placePiece, setHoverGrid } = useGameStore();
 
-  const BOARD_CELL_SIZE = 40; // Debe coincidir con el de Board en App.tsx
+  const BOARD_CELL_SIZE = CELL_SIZE; 
 
   const getTargetGrid = (info: PanInfo) => {
     const boardElement = document.getElementById('grid-board');
@@ -33,7 +34,7 @@ export function DraggablePiece({ piece, index, cellSize = 30 }: DraggablePiecePr
     const offsetY = info.point.y - boardRect.top;
 
     // Ajuste de "vuelo": la pieza se desplaza un poco hacia arriba para no taparla con el dedo
-    const dragOffsetV = 60; 
+    const dragOffsetV = DRAG_OFFSET_V; 
     
     // Restamos el centro de la pieza para que el cursor apunte al medio de la forma
     return pixelToGrid(

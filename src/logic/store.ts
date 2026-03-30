@@ -4,8 +4,8 @@ import { generateInitialPieces, generateRandomPiece } from './pieces';
 import type { PieceShape } from './pieces';
 import type { GridCoordinate } from './gridUtils';
 import { sounds } from './sounds';
+import { BOARD_SIZE, POINTS_PER_BLOCK, LINES_PER_LEVEL } from './constants';
 
-const BOARD_SIZE = 8;
 interface GameState {
   board: Record<string, string>;
   pieces: (PieceShape | null)[];
@@ -19,9 +19,12 @@ interface GameState {
   lastClearedLines: { rows: number[], cols: number[] };
   showCombo: boolean;
   showLevelUp: boolean;
+  showFullClear: boolean;
   draggedPieceIndex: number | null;
   hoverGrid: GridCoordinate | null;
   gameOver: boolean;
+  isMuted: boolean;
+  toggleMute: () => void;
   setHoverGrid: (index: number | null, coords: GridCoordinate | null) => void;
   canPlacePiece: (pieceIndex: number, startX: number, startY: number) => boolean;
   placePiece: (pieceIndex: number, startX: number, startY: number) => boolean;
@@ -30,6 +33,7 @@ interface GameState {
   resetGame: () => void;
   hideCombo: () => void;
   hideLevelUp: () => void;
+  hideFullClear: () => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -47,16 +51,22 @@ export const useGameStore = create<GameState>()(
       lastClearedLines: { rows: [], cols: [] },
       showCombo: false,
       showLevelUp: false,
+      showFullClear: false,
       draggedPieceIndex: null,
       hoverGrid: null,
       gameOver: false,
+      isMuted: false,
+
+      toggleMute: () => {
+        const newMuted = sounds.toggleMute();
+        set({ isMuted: newMuted });
+      },
 
       hideCombo: () => set({ showCombo: false }),
       hideLevelUp: () => set({ showLevelUp: false }),
+      hideFullClear: () => set({ showFullClear: false }),
 
       setHoverGrid: (index, coords) => {
-        // ... (resto igual)
-
         if (get().gameOver) return;
         const current = get();
         
@@ -93,7 +103,7 @@ export const useGameStore = create<GameState>()(
 
       placePiece: (pieceIndex, startX, startY) => {
         if (get().gameOver) return false;
-        const { board, pieces } = get();
+        const { board, pieces, level } = get();
         const piece = pieces[pieceIndex];
         if (!piece) return false;
 
@@ -111,15 +121,18 @@ export const useGameStore = create<GameState>()(
         newPieces[pieceIndex] = null;
         
         if (newPieces.every(p => p === null)) {
-          const currentLevel = get().level;
+          // Lógica de Salvación: Si el tablero está > 60% lleno, dar piezas pequeñas
+          const boardFill = Object.keys(newBoard).length / (BOARD_SIZE * BOARD_SIZE);
+          const isCritical = boardFill > 0.6;
+          
           newPieces = [
-            generateRandomPiece(currentLevel), 
-            generateRandomPiece(currentLevel), 
-            generateRandomPiece(currentLevel)
+            generateRandomPiece(isCritical ? 1 : level), 
+            generateRandomPiece(isCritical ? 1 : level), 
+            generateRandomPiece(level)
           ];
         }
 
-        const addedScore = piece.coords.length * 10;
+        const addedScore = piece.coords.length * POINTS_PER_BLOCK;
         const newScore = get().score + addedScore;
         const currentHighScore = get().highScore;
         
@@ -185,14 +198,17 @@ export const useGameStore = create<GameState>()(
         if (toClear.size > 0) {
           toClear.forEach(key => delete newBoard[key]);
           
+          // Detección de Limpieza Total (Board Clear)
+          const isFullClear = Object.keys(newBoard).length === 0;
+          
           const newCombo = combo + 1;
           const basePoints = (linesInThisTurn * (linesInThisTurn + 1) / 2) * 100;
-          const earned = basePoints * level * (1 + newCombo * 0.1);
+          const earned = basePoints * level * (1 + newCombo * 0.1) + (isFullClear ? 1000 : 0);
 
           const newScore = score + Math.floor(earned);
           const currentHighScore = get().highScore;
           const newTotalLines = linesCleared + linesInThisTurn;
-          const newLevel = Math.floor(newTotalLines / 10) + 1;
+          const newLevel = Math.floor(newTotalLines / LINES_PER_LEVEL) + 1;
           const levelUp = newLevel > level;
 
           set({ 
@@ -206,13 +222,13 @@ export const useGameStore = create<GameState>()(
             lastClearedLines: { rows: clearedRows, cols: clearedCols },
             showCombo: linesInThisTurn >= 2 || newCombo >= 3,
             level: newLevel,
-            showLevelUp: levelUp
+            showLevelUp: levelUp,
+            showFullClear: isFullClear
           });
 
-          // Siempre reproducir el sonido de limpieza de bloques
           sounds.playClear();
+          if (isFullClear) sounds.playLevelUp(); // Sonido especial para limpieza total
 
-          // Y ADEMÁS reproducir sonidos de voz según líneas eliminadas
           if (linesInThisTurn === 2) {
             sounds.playVoice('great');
           } else if (linesInThisTurn === 3) {

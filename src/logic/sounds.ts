@@ -2,6 +2,7 @@
 class SoundSystem {
   private ctx: AudioContext | null = null;
   private audioBuffers: Record<string, AudioBuffer> = {};
+  private muted: boolean = false;
 
   private async init() {
     if (!this.ctx) {
@@ -11,6 +12,15 @@ class SoundSystem {
       await this.ctx.resume();
     }
     return this.ctx;
+  }
+
+  toggleMute() {
+    this.muted = !this.muted;
+    return this.muted;
+  }
+
+  isMuted() {
+    return this.muted;
   }
 
   private async loadSound(name: string, url: string) {
@@ -26,6 +36,7 @@ class SoundSystem {
   }
 
   private playBuffer(name: string, volume: number = 0.5) {
+    if (this.muted) return;
     const buffer = this.audioBuffers[name];
     if (!buffer || !this.ctx) return;
 
@@ -41,6 +52,7 @@ class SoundSystem {
   }
 
   private playTone(freq: number, type: OscillatorType, duration: number, volume: number = 0.1) {
+    if (this.muted) return;
     this.init();
     if (!this.ctx) return;
 
