@@ -3,6 +3,21 @@ class SoundSystem {
   private ctx: AudioContext | null = null;
   private audioBuffers: Record<string, AudioBuffer> = {};
   private muted: boolean = false;
+  private volume: number = 0.8;
+  private bgMusic: HTMLAudioElement | null = null;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      try {
+        // En Vite, los archivos en 'public' se acceden desde la raíz '/'
+        this.bgMusic = new Audio('/sounds/bg3.mp3'); 
+        this.bgMusic.loop = true;
+        this.bgMusic.volume = this.volume * 0.2;
+      } catch (e) {
+        console.error("Error al inicializar la música de fondo:", e);
+      }
+    }
+  }
 
   private async init() {
     if (!this.ctx) {
@@ -16,11 +31,42 @@ class SoundSystem {
 
   toggleMute() {
     this.muted = !this.muted;
+    if (this.bgMusic) {
+      if (this.muted) {
+        this.bgMusic.pause();
+      } else {
+        // Solo reanudar si el juego está activo (esto lo manejaremos en App.tsx mejor)
+      }
+    }
     return this.muted;
   }
 
   isMuted() {
     return this.muted;
+  }
+
+  setVolume(value: number) {
+    this.volume = Math.max(0, Math.min(1, value));
+    if (this.bgMusic) {
+      this.bgMusic.volume = this.volume * 0.3;
+    }
+  }
+
+  startMusic() {
+    if (this.bgMusic && !this.muted) {
+      this.bgMusic.play().catch(e => console.warn("Interacción requerida", e));
+    }
+  }
+
+  stopMusic() {
+    if (this.bgMusic) {
+      this.bgMusic.pause();
+      this.bgMusic.currentTime = 0;
+    }
+  }
+
+  getVolume() {
+    return this.volume;
   }
 
   private async loadSound(name: string, url: string) {
@@ -44,7 +90,7 @@ class SoundSystem {
     const gain = this.ctx.createGain();
     
     source.buffer = buffer;
-    gain.gain.value = volume;
+    gain.gain.value = volume * this.volume;
     
     source.connect(gain);
     gain.connect(this.ctx.destination);
@@ -62,7 +108,7 @@ class SoundSystem {
     osc.type = type;
     osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
 
-    gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+    gain.gain.setValueAtTime(volume * this.volume, this.ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
 
     osc.connect(gain);
@@ -83,16 +129,22 @@ class SoundSystem {
   }
 
   playClear() {
-    // Efecto de "carillón de cristal" usando escala pentatónica
-    const notes = [523.25, 659.25, 783.99, 987.77, 1046.50, 1318.51];
+    // Efecto de "carillón" más grave y potente
+    const notes = [261.63, 329.63, 392.00, 493.88, 523.25, 659.25];
     notes.forEach((freq, i) => {
       setTimeout(() => {
-        const duration = 0.6 - (i * 0.05);
-        this.playTone(freq, 'sine', duration, 0.06);
-        // Añadir armónico sutil para brillo
-        this.playTone(freq * 2, 'sine', duration * 0.5, 0.02);
-      }, i * 45);
+        const duration = 0.7 - (i * 0.05);
+        this.playTone(freq, 'sine', duration, 0.08);
+        // Añadir sub-armónico para dar cuerpo
+        this.playTone(freq / 2, 'sine', duration * 0.8, 0.04);
+      }, i * 50);
     });
+  }
+
+  vibrate(pattern: number | number[]) {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(pattern);
+    }
   }
 
   playLevelUp() {

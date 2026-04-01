@@ -6,11 +6,23 @@ import type { GridCoordinate } from './gridUtils';
 import { sounds } from './sounds';
 import { BOARD_SIZE, POINTS_PER_BLOCK, LINES_PER_LEVEL } from './constants';
 
+export type GameMode = 'classic' | 'zen' | 'missions';
+type View = 'menu' | 'game';
+
+interface Mission {
+  type: 'lines' | 'combo' | 'score';
+  target: number;
+  current: number;
+  description: string;
+}
+
 interface GameState {
+  view: View;
+  gameMode: GameMode;
   board: Record<string, string>;
   pieces: (PieceShape | null)[];
   score: number;
-  highScore: number;
+  highScore: Record<GameMode, number>;
   level: number;
   linesCleared: number;
   combo: number;
@@ -24,7 +36,15 @@ interface GameState {
   hoverGrid: GridCoordinate | null;
   gameOver: boolean;
   isMuted: boolean;
+  isPaused: boolean;
+  volume: number;
+  currentMission: Mission | null;
+  
+  setView: (view: View) => void;
+  setGameMode: (mode: GameMode) => void;
   toggleMute: () => void;
+  setPaused: (paused: boolean) => void;
+  setVolume: (volume: number) => void;
   setHoverGrid: (index: number | null, coords: GridCoordinate | null) => void;
   canPlacePiece: (pieceIndex: number, startX: number, startY: number) => boolean;
   placePiece: (pieceIndex: number, startX: number, startY: number) => boolean;
@@ -34,15 +54,19 @@ interface GameState {
   hideCombo: () => void;
   hideLevelUp: () => void;
   hideFullClear: () => void;
+  generateNewMission: () => void;
+  tickTime: () => void;
 }
 
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
+      view: 'menu',
+      gameMode: 'classic',
       board: {},
       pieces: generateInitialPieces(),
       score: 0,
-      highScore: 0,
+      highScore: { classic: 0, zen: 0, missions: 0 },
       level: 1,
       linesCleared: 0,
       combo: 0,
@@ -56,165 +80,186 @@ export const useGameStore = create<GameState>()(
       hoverGrid: null,
       gameOver: false,
       isMuted: false,
+      isPaused: false,
+      volume: 0.5,
+      currentMission: null,
+
+      setView: (view) => set({ view, isPaused: false }),
+      setGameMode: (gameMode) => set({ gameMode }),
 
       toggleMute: () => {
         const newMuted = sounds.toggleMute();
         set({ isMuted: newMuted });
       },
 
+      setPaused: (isPaused) => set({ isPaused }),
+      
+      setVolume: (volume) => {
+        sounds.setVolume(volume);
+        set({ volume });
+      },
+
       hideCombo: () => set({ showCombo: false }),
       hideLevelUp: () => set({ showLevelUp: false }),
       hideFullClear: () => set({ showFullClear: false }),
+      tickTime: () => {},
+
+      generateNewMission: () => {
+        const { level } = get();
+        const types: Mission['type'][] = ['lines', 'combo', 'score'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        
+        let mission: Mission;
+        switch(type) {
+          case 'lines':
+            const lineTarget = 2 + level;
+            mission = { type, target: lineTarget, current: 0, description: `Limpia ${lineTarget} líneas` };
+            break;
+          case 'combo':
+            const comboTarget = level > 5 ? 3 : 2;
+            mission = { type, target: comboTarget, current: 0, description: `Llega a combo x${comboTarget}` };
+            break;
+          case 'score':
+          default:
+            const scoreTarget = 300 * level;
+            mission = { type, target: scoreTarget, current: 0, description: `Gana ${scoreTarget} puntos` };
+            break;
+        }
+        set({ currentMission: mission });
+      },
 
       setHoverGrid: (index, coords) => {
-        if (get().gameOver) return;
-        const current = get();
-        
-        if (index !== null && current.draggedPieceIndex === null) {
-          sounds.playPickup();
-        }
+        const state = get();
+        if (state.gameOver || state.isPaused) return;
 
-        const isSameCoords = current.hoverGrid && coords && 
-                            current.hoverGrid.x === coords.x && 
-                            current.hoverGrid.y === coords.y;
-        const isSameIndex = current.draggedPieceIndex === index;
+        // Si la posición es la misma que la anterior, no actualizar el estado
+        const isSameX = state.hoverGrid?.x === coords?.x;
+        const isSameY = state.hoverGrid?.y === coords?.y;
+        const isSameIndex = state.draggedPieceIndex === index;
 
-        if (isSameCoords && isSameIndex) return;
+        if (isSameX && isSameY && isSameIndex) return;
 
         set({ draggedPieceIndex: index, hoverGrid: coords });
       },
 
       canPlacePiece: (pieceIndex, startX, startY) => {
-        const { board, pieces } = get();
-        if (pieceIndex === null) return false;
+        const { board, pieces, isPaused, gameOver } = get();
+        if (isPaused || gameOver || pieceIndex === null) return false;
         const piece = pieces[pieceIndex];
         if (!piece) return false;
 
         for (const offset of piece.coords) {
           const x = startX + offset.x;
           const y = startY + offset.y;
-          const key = `${x},${y}`;
-
           if (x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE) return false;
-          if (board[key]) return false;
+          if (board[`${x},${y}`]) return false;
         }
         return true;
       },
 
       placePiece: (pieceIndex, startX, startY) => {
-        if (get().gameOver) return false;
-        const { board, pieces, level } = get();
-        const piece = pieces[pieceIndex];
+        const state = get();
+        if (state.gameOver || state.isPaused) return false;
+        const piece = state.pieces[pieceIndex];
         if (!piece) return false;
 
         if (!get().canPlacePiece(pieceIndex, startX, startY)) return false;
 
-        const newBoard = { ...board };
+        const newBoard = { ...state.board };
         for (const offset of piece.coords) {
-          const x = startX + offset.x;
-          const y = startY + offset.y;
-          const key = `${x},${y}`;
-          newBoard[key] = piece.color;
+          newBoard[`${startX + offset.x},${startY + offset.y}`] = piece.color;
         }
 
-        let newPieces: (PieceShape | null)[] = [...pieces];
+        let newPieces = [...state.pieces];
         newPieces[pieceIndex] = null;
-        
+
         if (newPieces.every(p => p === null)) {
-          // Lógica de Salvación: Si el tablero está > 60% lleno, dar piezas pequeñas
-          const boardFill = Object.keys(newBoard).length / (BOARD_SIZE * BOARD_SIZE);
-          const isCritical = boardFill > 0.6;
-          
-          newPieces = [
-            generateRandomPiece(isCritical ? 1 : level), 
-            generateRandomPiece(isCritical ? 1 : level), 
-            generateRandomPiece(level)
-          ];
+          newPieces = [generateRandomPiece(state.level), generateRandomPiece(state.level), generateRandomPiece(state.level)];
         }
 
         const addedScore = piece.coords.length * POINTS_PER_BLOCK;
-        const newScore = get().score + addedScore;
-        const currentHighScore = get().highScore;
+        const newScore = state.score + addedScore;
         
+        let updatedMission = state.currentMission;
+        let missionCompleted = false;
+        if (state.gameMode === 'missions' && updatedMission?.type === 'score') {
+          updatedMission = { ...updatedMission, current: updatedMission.current + addedScore };
+          if (updatedMission.current >= updatedMission.target) missionCompleted = true;
+        }
+
         set({ 
           board: newBoard, 
           pieces: newPieces, 
           score: newScore,
-          highScore: Math.max(newScore, currentHighScore),
+          highScore: { ...state.highScore, [state.gameMode]: Math.max(newScore, state.highScore[state.gameMode]) },
           draggedPieceIndex: null,
-          hoverGrid: null
+          hoverGrid: null,
+          currentMission: missionCompleted ? null : updatedMission
         });
-        
+
+        if (missionCompleted) {
+          sounds.playLevelUp();
+          setTimeout(() => get().generateNewMission(), 100);
+        }
+
         sounds.playPlace();
+        sounds.vibrate(10);
         get().clearLines();
         get().checkGameOver();
         return true;
       },
 
       clearLines: () => {
-        const { board, score, linesCleared, combo, level, missedTurns } = get();
-        const newBoard = { ...board };
+        const state = get();
+        const { board, gameMode, currentMission } = state;
         const toClear = new Set<string>();
-        let linesInThisTurn = 0;
         const clearedRows: number[] = [];
         const clearedCols: number[] = [];
 
         for (let y = 0; y < BOARD_SIZE; y++) {
           let rowFull = true;
-          const rowKeys: string[] = [];
-          for (let x = 0; x < BOARD_SIZE; x++) {
-            const key = `${x},${y}`;
-            rowKeys.push(key);
-            if (!board[key]) {
-              rowFull = false;
-              break;
-            }
-          }
+          for (let x = 0; x < BOARD_SIZE; x++) if (!board[`${x},${y}`]) { rowFull = false; break; }
           if (rowFull) {
-            rowKeys.forEach(k => toClear.add(k));
-            linesInThisTurn++;
+            for (let x = 0; x < BOARD_SIZE; x++) toClear.add(`${x},${y}`);
             clearedRows.push(y);
           }
         }
 
         for (let x = 0; x < BOARD_SIZE; x++) {
           let colFull = true;
-          const colKeys: string[] = [];
-          for (let y = 0; y < BOARD_SIZE; y++) {
-            const key = `${x},${y}`;
-            colKeys.push(key);
-            if (!board[key]) {
-              colFull = false;
-              break;
-            }
-          }
+          for (let y = 0; y < BOARD_SIZE; y++) if (!board[`${x},${y}`]) { colFull = false; break; }
           if (colFull) {
-            colKeys.forEach(k => toClear.add(k));
-            linesInThisTurn++;
+            for (let y = 0; y < BOARD_SIZE; y++) toClear.add(`${x},${y}`);
             clearedCols.push(x);
           }
         }
 
         if (toClear.size > 0) {
+          const newBoard = { ...board };
           toClear.forEach(key => delete newBoard[key]);
           
-          // Detección de Limpieza Total (Board Clear)
-          const isFullClear = Object.keys(newBoard).length === 0;
-          
-          const newCombo = combo + 1;
-          const basePoints = (linesInThisTurn * (linesInThisTurn + 1) / 2) * 100;
-          const earned = basePoints * level * (1 + newCombo * 0.1) + (isFullClear ? 1000 : 0);
-
-          const newScore = score + Math.floor(earned);
-          const currentHighScore = get().highScore;
-          const newTotalLines = linesCleared + linesInThisTurn;
+          const linesInThisTurn = clearedRows.length + clearedCols.length;
+          const newCombo = state.combo + 1;
+          const earned = Math.floor(((linesInThisTurn * (linesInThisTurn + 1) / 2) * 100) * state.level * (1 + newCombo * 0.1));
+          const newScore = state.score + earned;
+          const newTotalLines = state.linesCleared + linesInThisTurn;
           const newLevel = Math.floor(newTotalLines / LINES_PER_LEVEL) + 1;
-          const levelUp = newLevel > level;
+
+          let updatedMission = currentMission;
+          let missionCompleted = false;
+          if (gameMode === 'missions' && updatedMission) {
+            if (updatedMission.type === 'lines') {
+              updatedMission = { ...updatedMission, current: updatedMission.current + linesInThisTurn };
+              if (updatedMission.current >= updatedMission.target) missionCompleted = true;
+            } else if (updatedMission.type === 'combo' && newCombo >= updatedMission.target) {
+              missionCompleted = true;
+            }
+          }
 
           set({ 
             board: newBoard, 
             score: newScore,
-            highScore: Math.max(newScore, currentHighScore),
+            highScore: { ...state.highScore, [gameMode]: Math.max(newScore, state.highScore[gameMode]) },
             linesCleared: newTotalLines,
             combo: newCombo,
             missedTurns: 0,
@@ -222,86 +267,78 @@ export const useGameStore = create<GameState>()(
             lastClearedLines: { rows: clearedRows, cols: clearedCols },
             showCombo: linesInThisTurn >= 2 || newCombo >= 3,
             level: newLevel,
-            showLevelUp: levelUp,
-            showFullClear: isFullClear
+            showLevelUp: newLevel > state.level,
+            currentMission: missionCompleted ? null : updatedMission
           });
 
-          sounds.playClear();
-          if (isFullClear) sounds.playLevelUp(); // Sonido especial para limpieza total
+          if (missionCompleted) {
+            sounds.playLevelUp();
+            setTimeout(() => get().generateNewMission(), 100);
+          }
 
-          if (linesInThisTurn === 2) {
-            sounds.playVoice('great');
-          } else if (linesInThisTurn === 3) {
-            sounds.playVoice('excellent');
-          } else if (linesInThisTurn === 4) {
-            sounds.playVoice('perfect');
-          } else if (linesInThisTurn >= 5) {
-            sounds.playVoice('amazing');
-          }
+          sounds.playClear();
+          sounds.vibrate(25);
+          if (linesInThisTurn >= 2) sounds.playVoice(linesInThisTurn >= 5 ? 'amazing' : linesInThisTurn === 4 ? 'perfect' : linesInThisTurn === 3 ? 'excellent' : 'great');
         } else {
-          const newMissedTurns = missedTurns + 1;
-          if (newMissedTurns >= 3) {
-            set({ combo: 0, missedTurns: 0, showCombo: false, lastClearedLines: { rows: [], cols: [] } });
-          } else {
-            set({ missedTurns: newMissedTurns, showCombo: false, lastClearedLines: { rows: [], cols: [] } });
-          }
+          const newMissedTurns = state.missedTurns + 1;
+          set({ 
+            missedTurns: newMissedTurns, 
+            showCombo: false, 
+            combo: newMissedTurns >= 3 ? 0 : state.combo 
+          });
         }
       },
 
       checkGameOver: () => {
-        const { board, pieces } = get();
+        const { board, pieces, gameMode, isPaused, gameOver } = get();
+        if (isPaused || gameOver) return;
+
         const remainingPieces = pieces.filter(p => p !== null) as PieceShape[];
-        
         if (remainingPieces.length === 0) return;
 
-        const canMove = remainingPieces.some((piece) => {
-          const pieceIndexInState = pieces.indexOf(piece);
+        const canMove = remainingPieces.some(piece => {
           for (let y = 0; y < BOARD_SIZE; y++) {
             for (let x = 0; x < BOARD_SIZE; x++) {
-              if (get().canPlacePiece(pieceIndexInState, x, y)) {
-                return true;
-              }
+              if (get().canPlacePiece(pieces.indexOf(piece), x, y)) return true;
             }
           }
           return false;
         });
 
         if (!canMove) {
-          set({ gameOver: true });
-          sounds.playGameOver();
+          if (gameMode === 'zen') {
+            const newBoard = { ...board };
+            const c = Math.floor(BOARD_SIZE / 2);
+            for (let y = c - 2; y <= c + 2; y++) for (let x = c - 2; x <= c + 2; x++) delete newBoard[`${x},${y}`];
+            set({ board: newBoard });
+            sounds.playClear();
+          } else {
+            set({ gameOver: true });
+            sounds.playGameOver();
+          }
         }
       },
 
       resetGame: () => {
+        const mode = get().gameMode;
         set({
           board: {},
           pieces: generateInitialPieces(),
           score: 0,
           level: 1,
           linesCleared: 0,
-          draggedPieceIndex: null,
-          hoverGrid: null,
           gameOver: false,
           combo: 0,
           missedTurns: 0,
-          showCombo: false
+          currentMission: null,
+          isPaused: false
         });
+        if (mode === 'missions') setTimeout(() => get().generateNewMission(), 50);
       }
     }),
     {
-      name: 'pleasure-block-storage',
+      name: 'pleasure-block-v2',
       storage: createJSONStorage(() => localStorage),
-      // Solo persistir lo necesario para retomar la partida
-      partialize: (state) => ({
-        board: state.board,
-        pieces: state.pieces,
-        score: state.score,
-        highScore: state.highScore,
-        level: state.level,
-        linesCleared: state.linesCleared,
-        combo: state.combo,
-        missedTurns: state.missedTurns,
-      }),
     }
   )
 );
