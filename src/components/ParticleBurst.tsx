@@ -1,13 +1,6 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState, useMemo } from 'react';
 
-interface Particle {
-  id: number;
-  x: number;
-  y: number;
-  color: string;
-}
-
 interface ParticleBurstProps {
   x: number;
   y: number;

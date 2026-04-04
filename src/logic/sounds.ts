@@ -166,10 +166,10 @@ class SoundSystem {
   // Voces para combos
   async preloadVoices() {
     await Promise.all([
-      this.loadSound('great', '/public/sounds/great.wav'),
-      this.loadSound('excellent', '/public/sounds/excellent.wav'),
-      this.loadSound('perfect', '/public/sounds/perfect.wav'),
-      this.loadSound('amazing', '/public/sounds/amazing.wav'),
+      this.loadSound('great', '/sounds/great.wav'),
+      this.loadSound('excellent', '/sounds/excellent.wav'),
+      this.loadSound('perfect', '/sounds/perfect.wav'),
+      this.loadSound('amazing', '/sounds/amazing.wav'),
     ]);
   }
 
