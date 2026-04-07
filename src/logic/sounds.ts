@@ -154,16 +154,27 @@ class SoundSystem {
   }
 
   playGameOver(): void {
-    this.playTone(220, 'sawtooth', 0.5, 0.1);
-    setTimeout(() => this.playTone(196, 'sawtooth', 0.8, 0.1), 200);
+    if (this.audioBuffers['gameover']) {
+      this.playBuffer('gameover', 0.6);
+      return;
+    }
+    const notes = [440, 349.23, 329.63, 261.63, 220, 196, 164.81];
+    notes.forEach((freq, i) => {
+      setTimeout(() => {
+        const duration = 0.8;
+        this.playTone(freq, 'sawtooth', duration, 0.05);
+        this.playTone(freq / 2, 'triangle', duration, 0.08);
+      }, i * 150);
+    });
   }
 
   async preloadVoices(): Promise<void> {
     await Promise.all([
-      this.loadSound('great', '/sounds/great.wav'),
-      this.loadSound('excellent', '/sounds/excellent.wav'),
-      this.loadSound('perfect', '/sounds/perfect.wav'),
-      this.loadSound('amazing', '/sounds/amazing.wav'),
+      this.loadSound('great', '/sounds/great.mp3'),
+      this.loadSound('excellent', '/sounds/excellent.mp3'),
+      this.loadSound('perfect', '/sounds/perfect.mp3'),
+      this.loadSound('amazing', '/sounds/amazing.mp3'),
+      this.loadSound('gameover', '/sounds/gameover.mp3'),
     ]);
     this.voicesLoaded = true;
   }
