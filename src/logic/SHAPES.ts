@@ -1,4 +1,4 @@
-import type { PieceShape } from './pieces';
+import type { PieceShape } from './types';
 
 
 export const SHAPES: Omit<PieceShape, 'id' | 'color'>[] = [
@@ -7,6 +7,7 @@ export const SHAPES: Omit<PieceShape, 'id' | 'color'>[] = [
   { name: 'line-2-h', coords: [{ x: 0, y: 0 }, { x: 1, y: 0 }] },
   { name: 'line-2-v', coords: [{ x: 0, y: 0 }, { x: 0, y: 1 }] },
   { name: 'diagonal-2', coords: [{ x: 0, y: 0 }, { x: 1, y: 1 }] },
+  { name: 'hueco-2', coords: [{ x: 0, y: 0 }, { x: 1, y: 1 }] },
 
   // NIVEL 2: Intermedias
   { name: 'line-3-h', coords: [{ x: -1, y: 0 }, { x: 0, y: 0 }, { x: 1, y: 0 }] },

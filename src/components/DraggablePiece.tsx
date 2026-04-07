@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import type { PanInfo } from 'framer-motion';
 import { useRef, useMemo } from 'react';
-import type { PieceShape } from '../logic/pieces';
+import type { PieceShape } from '../logic/types';
 import { pixelToGrid } from '../logic/gridUtils';
 import { useGameStore } from '../logic/store';
 import { CELL_SIZE, DRAG_OFFSET_V } from '../logic/constants';

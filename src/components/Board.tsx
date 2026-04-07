@@ -1,5 +1,6 @@
 import { generateBoard } from '../logic/gridUtils';
 import { useGameStore } from '../logic/store';
+import type { GridCoordinate } from '../logic/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BOARD_SIZE, CELL_SIZE, CELL_SIZE_MOBILE } from '../logic/constants';
 import { ParticleBurst } from './ParticleBurst';

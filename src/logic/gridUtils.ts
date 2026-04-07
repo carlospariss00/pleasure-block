@@ -1,4 +1,4 @@
-export type GridCoordinate = { x: number; y: number };
+import type { GridCoordinate } from './types';
 
 // Convertir coordenadas de red a píxeles para el renderizado
 export function gridToPixel(x: number, y: number, size: number) {
