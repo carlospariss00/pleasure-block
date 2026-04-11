@@ -5,7 +5,7 @@ import { sounds } from './sounds';
 import { BOARD_SIZE, POINTS_PER_BLOCK, LINES_PER_LEVEL } from './constants';
 
 export type GameMode = 'classic' | 'zen' | 'missions';
-type View = 'menu' | 'game';
+type View = 'intro' | 'menu' | 'game';
 
 interface Mission {
   type: 'lines' | 'combo' | 'score';
@@ -58,7 +58,7 @@ interface GameState {
 
 export const useGameStore = create<GameState>()(
   (set, get) => ({
-    view: 'menu',
+    view: 'intro',
     gameMode: 'classic',
     board: {},
     pieces: generateInitialPieces(),
