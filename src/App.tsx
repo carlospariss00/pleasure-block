@@ -117,7 +117,7 @@ function App() {
                 </AnimatePresence>
               </div>
 
-              <div className={`w-full max-w-xs sm:max-w-md aspect-square bg-slate-900 rounded-2xl sm:rounded-3xl border-2 sm:border-4 border-slate-800 shadow-2xl flex items-center justify-center overflow-hidden relative mb-4 sm:mb-8 transition-opacity ${isPaused ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+              <div className={`board-container w-full max-w-xs sm:max-w-md aspect-square bg-slate-900 rounded-2xl sm:rounded-3xl border-2 sm:border-4 border-slate-800 shadow-2xl flex items-center justify-center overflow-hidden relative mb-4 sm:mb-8 transition-opacity ${isPaused ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
                 <Board size={BOARD_SIZE} cellSize={CELL_SIZE} />
                 
                 <AnimatePresence>

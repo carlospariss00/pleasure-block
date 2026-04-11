@@ -41,6 +41,9 @@ export function generateRandomPiece(level: number = 1, board: Record<string, str
     { name: 'dot', weight: 1 },
     { name: 'line-2-h', weight: 1 },
     { name: 'line-2-v', weight: 1 },
+    { name: 'rect-3x2-h', weight: 3 },
+    { name: 'rect-2x3-v', weight: 3 },
+    
   ];
   const mediumShapes: ShapeOption[] = [
     { name: 'line-3-h', weight: 5 },
@@ -48,10 +51,7 @@ export function generateRandomPiece(level: number = 1, board: Record<string, str
     { name: 'square-2x2', weight: 5 },
     { name: 'l-shape', weight: 5 },
     { name: 'j-shape', weight: 5 },
-    { name: 't-shape-up', weight: 5 },
-    { name: 'T-shape', weight: 5 },
-    { name: 'z-shape', weight: 4 },
-    { name: 's-shape', weight: 4 },
+    
   ];
   const largeShapes: ShapeOption[] = [
     { name: 'line-4-h', weight: 4 },
@@ -59,15 +59,27 @@ export function generateRandomPiece(level: number = 1, board: Record<string, str
     { name: 'line-5-h', weight: 3 },
     { name: 'line-5-v', weight: 3 },
     { name: 'big-square', weight: 2 },
-    { name: 't-shape-v', weight: 4 },
     { name: 'L-shape-r', weight: 3 },
   ];
+  const mediumLargeShapes: ShapeOption[] = [
+    { name: 'diagonal-2', weight: 3 },
+    { name: 'diagonal-3', weight: 4 },
+    { name: 'hueco-2', weight: 3 },
+    { name: 'hueco-2-2', weight: 3 },
+    { name: 'hueco-2-3', weight: 3 },
+    { name: 't-shape-up', weight: 5 },
+    { name: 'z-shape', weight: 4 },
+    { name: 's-shape', weight: 4 },
+    { name: 'T-shape', weight: 5 },
+    { name: 't-shape-v', weight: 4 },
+    ];
   const extraLargeShapes: ShapeOption[] = [
-    { name: 'rect-3x2-h', weight: 3 },
-    { name: 'rect-2x3-v', weight: 3 },
+    
+    
     { name: 'cross', weight: 3 },
     { name: 'C-shape', weight: 2 },
   ];
+  
 
   let pool: ShapeOption[] = [];
 
@@ -75,8 +87,10 @@ export function generateRandomPiece(level: number = 1, board: Record<string, str
     pool = [...mediumShapes, ...largeShapes, ...tinyShapes];
   } else if (level <= 5) {
     pool = [...mediumShapes, ...largeShapes, ...extraLargeShapes, ...tinyShapes];
+  } else if (level <= 7) {
+    pool = [...mediumShapes, ...largeShapes, ...extraLargeShapes, ...tinyShapes, ...mediumLargeShapes];
   } else {
-    pool = [...mediumShapes, ...largeShapes, ...extraLargeShapes, ...tinyShapes];
+    pool = [...mediumShapes, ...largeShapes, ...extraLargeShapes, ...tinyShapes, ...mediumLargeShapes];
   }
 
   if (emptyPercentage < 0.5) {

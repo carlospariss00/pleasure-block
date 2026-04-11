@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import type { PanInfo } from 'framer-motion';
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 import type { PieceShape } from '../logic/types';
 import { pixelToGrid } from '../logic/gridUtils';
 import { useGameStore } from '../logic/store';
@@ -15,6 +15,25 @@ interface DraggablePieceProps {
 export function DraggablePiece({ piece, index, cellSize = 30 }: DraggablePieceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { placePiece, setHoverGrid } = useGameStore();
+  const [activeCellSize, setActiveCellSize] = useState(CELL_SIZE);
+
+  useEffect(() => {
+    const updateCellSize = () => {
+      const boardElement = document.getElementById('grid-board');
+      if (boardElement) {
+        const gridStyle = window.getComputedStyle(boardElement);
+        const gridTemplateColumns = gridStyle.gridTemplateColumns;
+        const cellSizeStr = gridTemplateColumns.split(' ')[0];
+        const parsed = parseFloat(cellSizeStr);
+        if (!isNaN(parsed) && parsed > 0) {
+          setActiveCellSize(parsed);
+        }
+      }
+    };
+    updateCellSize();
+    window.addEventListener('resize', updateCellSize);
+    return () => window.removeEventListener('resize', updateCellSize);
+  }, []);
 
   const { minX, minY, centerX, centerY, gridWidth, gridHeight } = useMemo(() => {
     const xs = piece.coords.map(c => c.x);
@@ -37,10 +56,11 @@ export function DraggablePiece({ piece, index, cellSize = 30 }: DraggablePiecePr
     const boardElement = document.getElementById('grid-board');
     if (!boardElement) return null;
     const boardRect = boardElement.getBoundingClientRect();
+    const currentCellSize = activeCellSize || CELL_SIZE;
     return pixelToGrid(
-      info.point.x - boardRect.left - centerX * CELL_SIZE,
-      info.point.y - boardRect.top - DRAG_OFFSET_V - centerY * CELL_SIZE,
-      CELL_SIZE
+      info.point.x - boardRect.left - centerX * currentCellSize,
+      info.point.y - boardRect.top - DRAG_OFFSET_V - centerY * currentCellSize,
+      currentCellSize
     );
   };
 

@@ -128,12 +128,12 @@ class SoundSystem {
 
   playClear(): void {
     const notes = [261.63, 329.63, 392.00, 493.88, 523.25, 659.25];
-    notes.forEach((freq, i) => {
-      setTimeout(() => {
-        const duration = 0.7 - (i * 0.05);
-        this.playTone(freq, 'sine', duration, 0.08);
-        this.playTone(freq / 2, 'sine', duration * 0.8, 0.04);
-      }, i * 50);
+  notes.forEach((freq, i) => {
+    setTimeout(() => {
+      const duration = 0.7 - (i * 0.05);
+      this.playTone(freq, 'sine', duration, 0.08);
+      this.playTone(freq / 2, 'sine', duration * 0.8, 0.04);
+    }, i * 50);
     });
   }
 
@@ -155,7 +155,7 @@ class SoundSystem {
 
   playGameOver(): void {
     if (this.audioBuffers['gameover']) {
-      this.playBuffer('gameover', 0.6);
+      this.playBuffer('gameover', 0.4);
       return;
     }
     const notes = [440, 349.23, 329.63, 261.63, 220, 196, 164.81];
@@ -216,6 +216,31 @@ class SoundSystem {
       this.playTone(1046.50, 'sine', 1.0, 0.15);
       this.playTone(2093, 'sine', 0.8, 0.08);
     }, 500);
+  }
+
+  playCombo(multiplier: number): void {
+    if (multiplier < 10) return;
+    
+    const comboConfigs: Record<number, { freqs: number[]; type1: OscillatorType; type2: OscillatorType; duration: number }> = {
+      10: { freqs: [523.25, 659.25, 783.99], type1: 'triangle', type2: 'sine', duration: 1 },
+      11: { freqs: [587.33, 739.99, 880], type1: 'triangle', type2: 'sine', duration: 0.85 },
+      12: { freqs: [659.25, 830.61, 987.77], type1: 'square', type2: 'sine', duration: 0.7 },
+      13: { freqs: [698.46, 880, 1046.50], type1: 'square', type2: 'triangle', duration: 0.6 },
+      14: { freqs: [783.99, 987.77, 1174.66], type1: 'sawtooth', type2: 'triangle', duration: 0.5 },
+      15: { freqs: [880, 1108.73, 1318.51], type1: 'sawtooth', type2: 'square', duration: 0.4 },
+    };
+    
+    const config = comboConfigs[Math.min(multiplier, 13)] || comboConfigs[13];
+    const delay = (multiplier - 10) * 30;
+    
+    setTimeout(() => {
+      config.freqs.forEach((freq, i) => {
+        setTimeout(() => {
+          this.playTone(freq, config.type1, config.duration, 0.12);
+          this.playTone(freq * 2, config.type2, config.duration * 0.7, 0.06);
+        }, i * 60);
+      });
+    }, delay);
   }
 }
 

@@ -4,7 +4,7 @@ import type { GridCoordinate } from '../logic/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BOARD_SIZE, CELL_SIZE, CELL_SIZE_MOBILE } from '../logic/constants';
 import { ParticleBurst } from './ParticleBurst';
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 interface BoardProps {
   size?: number;
@@ -12,10 +12,24 @@ interface BoardProps {
 }
 
 export function Board({ size = BOARD_SIZE, cellSize }: BoardProps) {
-  const cs = useMemo(() =>
-    cellSize ?? (window.innerWidth < 400 ? CELL_SIZE_MOBILE : CELL_SIZE),
-    [cellSize]
-  );
+  const [cs, setCs] = useState(CELL_SIZE);
+
+  useEffect(() => {
+    const calculateCellSize = () => {
+      const container = document.querySelector('.board-container');
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const availableSize = Math.min(containerRect.width, containerRect.height) - 16;
+        const calculated = Math.floor(availableSize / size);
+        setCs(Math.max(20, calculated));
+      } else {
+        setCs(window.innerWidth < 400 ? CELL_SIZE_MOBILE : CELL_SIZE);
+      }
+    };
+    calculateCellSize();
+    window.addEventListener('resize', calculateCellSize);
+    return () => window.removeEventListener('resize', calculateCellSize);
+  }, [size]);
 
   const boardCells = generateBoard(size);
   const { board: boardState, draggedPieceIndex, hoverGrid, pieces, canPlacePiece, lastClearedLines, combo } = useGameStore();

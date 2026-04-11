@@ -291,6 +291,7 @@ export const useGameStore = create<GameState>()(
           sounds.vibrate([50, 50, 100, 50, 150]);
         }
         if (linesInThisTurn >= 2) sounds.playVoice(linesInThisTurn >= 5 ? 'amazing' : linesInThisTurn === 4 ? 'perfect' : linesInThisTurn === 3 ? 'excellent' : 'great');
+        if (newCombo >= 5) sounds.playCombo(newCombo);
       } else {
         const newMissedTurns = state.missedTurns + 1;
         set({ 
